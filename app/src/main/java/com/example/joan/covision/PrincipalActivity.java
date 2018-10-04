@@ -143,7 +143,7 @@ public class PrincipalActivity extends AppCompatActivity
                 case 1:
                     return new TextFragment();
                 case 2:
-                    return SupportMapFragment.newInstance();
+                    return SomeFragment.newInstance();
                 default:
                     return null;
             }
