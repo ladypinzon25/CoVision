@@ -1,6 +1,7 @@
 package com.covision.covisionapp.fragments;
 
 import android.Manifest;
+import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Address;
 import android.location.Geocoder;
@@ -8,6 +9,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
@@ -28,6 +30,10 @@ import android.widget.Toast;
 import com.covision.covisionapp.R;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.places.PlaceDetectionClient;
+import com.google.android.gms.location.places.PlaceLikelihood;
+import com.google.android.gms.location.places.PlaceLikelihoodBufferResponse;
+import com.google.android.gms.location.places.Places;
 import com.google.android.gms.maps.CameraUpdate;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -58,6 +64,7 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     //vars
     private Boolean mLocationPermissionsGranted = false;
     private FusedLocationProviderClient mFusedLocationProviderClient;
+    private PlaceDetectionClient mPlaceDetectionClient;
 
     MapView mapView;
     GoogleMap mMap;
@@ -205,7 +212,8 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
         }
     }
 
-    private void getDeviceLocation(){
+    private String getDeviceLocation(){
+        final String[] locationMessage = {""};
         Log.d(TAG, "getDeviceLocation: getting the devices current location");
         mFusedLocationProviderClient = LocationServices.getFusedLocationProviderClient(getActivity());
         try{
@@ -222,6 +230,7 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
                                 moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()),
                                         DEFAULT_ZOOM,
                                         "My Location");
+                                locationMessage[0] =showCurrentPlace();
                             }else{
                                 Log.d(TAG, "onComplete: current location is null");
                                 Toast.makeText(getActivity(), "unable to get current location", Toast.LENGTH_SHORT).show();
@@ -232,11 +241,11 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
                 else{
                     getLocationPermission();
                 }
-
             }
         }catch (SecurityException e){
             Log.e(TAG, "getDeviceLocation: SecurityException: " + e.getMessage() );
         }
+        return locationMessage[0];
     }
 
     private void moveCamera(LatLng latLng, float zoom, String title){
@@ -269,6 +278,13 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
             if(ContextCompat.checkSelfPermission(getActivity().getApplicationContext(),
                     COURSE_LOCATION) == PackageManager.PERMISSION_GRANTED){
                 mLocationPermissionsGranted = true;
+
+                //verificar si el GPS está encendido
+                if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+                    Log.d(TAG, "el GPS no está activado");
+                    Intent intent1 = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                    startActivity(intent1);
+                }
             }else{
                 ActivityCompat.requestPermissions(getActivity(),
                         permissions,
@@ -330,5 +346,42 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     public static Fragment newInstance() {
         MapsFragment sm = new MapsFragment();
         return sm;
+    }
+
+    //lugar actual, por ahora este método es llamado por getDeviceLocation() pero puede ser llamado desdde cualquier fragmento
+    public String showCurrentPlace() {
+        final String[] rta = {""};
+        if (mMap == null) {
+            return rta[0];
+        }
+        if (mLocationPermissionsGranted) {
+            // Get the likely places - that is, the businesses and other points of interest that
+            // are the best match for the device's current location.
+            if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+                return rta[0];
+            }
+
+            mPlaceDetectionClient = Places.getPlaceDetectionClient(getActivity(), null);
+            Task<PlaceLikelihoodBufferResponse> placeResult = mPlaceDetectionClient.getCurrentPlace(null);
+            placeResult.addOnCompleteListener(new OnCompleteListener<PlaceLikelihoodBufferResponse>() {
+                @Override
+                public void onComplete(@NonNull Task<PlaceLikelihoodBufferResponse> task) {
+                    PlaceLikelihoodBufferResponse likelyPlaces = task.getResult();
+                    float max = -1;
+                    for (PlaceLikelihood placeLikelihood : likelyPlaces) {
+                        Log.i(TAG, String.format("Place '%s' has likelihood: %g",
+                                placeLikelihood.getPlace().getName(),
+                                placeLikelihood.getLikelihood()));
+                        if(placeLikelihood.getLikelihood() > max){
+                            max = placeLikelihood.getLikelihood();
+                            rta[0] = "Te encuentras en "+ placeLikelihood.getPlace().getName().toString();
+                        }
+                    }
+                    likelyPlaces.release();
+                    Log.i(TAG, "rta es: "+ rta[0]);
+                }
+            });
+        }
+        return rta[0];
     }
 }
