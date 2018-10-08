@@ -102,12 +102,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     switch (result)
                     {
                         case Location:
-                            showMaps();
                             voice.textToVoice(maps.showCurrentPlace());
+                            showMaps();
                             break;
                         case Route:
+                            voice.textToVoice("Calculando ruta hacia "+ params[0]);
+                            showMaps();
+                            maps.geoLocate(params[0]);
                             break;
                         case Detection:
+                            voice.textToVoice("Iniciando análisis de imagen");
+                            showObjectDetection();
+                            objectDetection.detect();
                             break;
 
                     }

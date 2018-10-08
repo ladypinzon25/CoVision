@@ -189,7 +189,7 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
                         || keyEvent.getKeyCode() == KeyEvent.KEYCODE_ENTER){
                     //execute our method for searching
                     Log.d(TAG, "trato de buscar");
-                    geoLocate();
+                    geoLocate("");
                     Log.d(TAG, "trate de buscar");
                 }
                 Log.d(TAG, "no se pudo entrar a buscar");
@@ -207,9 +207,10 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     }
 
 
-    private void geoLocate(){
+    public void geoLocate(String searchString){
         Log.d(TAG, "geoLocate: geolocating");
-        String searchString = mSearchText.getText().toString();
+
+        if (searchString == "") searchString = mSearchText.getText().toString();
         Geocoder geocoder = new Geocoder(getContext());
         List<Address> list = new ArrayList<>();
         try{
@@ -230,6 +231,7 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
                     address.getAddressLine(0));
         }
     }
+
 
     private String getDeviceLocation(){
         final String[] locationMessage = {""};
