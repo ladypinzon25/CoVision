@@ -28,6 +28,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.covision.covisionapp.R;
+import com.covision.covisionapp.structures.GetDirectionsData;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.places.PlaceDetectionClient;
@@ -80,6 +81,10 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     private Location lastLocation;
     double latitude,longitude;
     private Marker currentMarkerLocation;
+
+    //Duration between two points
+    private Object[] dataTransfer;
+    private String url ;
 
 
     @Override
@@ -365,6 +370,24 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
         locationManager.removeUpdates(this);
     }
 
+    public void durationOF(){
+        dataTransfer = new Object[2];
+        url = getDirectionsUrl();
+        GetDirectionsData gtdta= new GetDirectionsData();
+        dataTransfer[0]=mMap;
+        dataTransfer[1]=url;
+        gtdta.execute(dataTransfer);
+
+
+    }
+    private String getDirectionsUrl(){
+        StringBuilder googleDirectionsUrl = new StringBuilder("https://maps.googleapis.com/maps/api/directions/json?");
+        googleDirectionsUrl.append("origin="+latitude+","+longitude);
+        googleDirectionsUrl.append("&destination="+end_latitude+","+end_longitude);
+        googleDirectionsUrl.append("&key="+"AIzaSyD77tEGJBBVl3gwXHS_wBbTRvsinUa1wNE");
+        return googleDirectionsUrl.toString();
+    }
+
     public void updateLocation(Location location){
         lastLocation=location;
         if(currentMarkerLocation!=null){
@@ -476,6 +499,7 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
         end_latitude=marker.getPosition().latitude;
         end_longitude=marker.getPosition().longitude;
         pressButtonx();
+        //durationOF();
 
     }
 
