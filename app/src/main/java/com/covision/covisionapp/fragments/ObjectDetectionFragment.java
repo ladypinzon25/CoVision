@@ -56,6 +56,11 @@ public class ObjectDetectionFragment extends Fragment {
         void onError(String message);
     }
 
+    public void prepareCamera()
+    {
+        if (!cameraOpened) openCamera();
+    }
+
     public void detect()
     {
         if (textureView.isAvailable() && cameraId != null)

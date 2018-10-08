@@ -1,18 +1,15 @@
 package com.covision.covisionapp;
 
-import android.Manifest;
-import android.app.FragmentTransaction;
+import android.content.Context;
 import android.content.pm.PackageManager;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
-import android.support.v4.app.Fragment;
 import android.support.v4.app.FragmentManager;
+import android.support.v4.app.FragmentTransaction;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.Toast;
 
 import com.covision.covisionapp.fragments.MapsFragment;
 import com.covision.covisionapp.fragments.ObjectDetectionFragment;
@@ -20,108 +17,77 @@ import com.covision.covisionapp.fragments.VoiceFragment;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 
-    public static final int CAMERA_REQUEST_CODE = 200;
-    public static final int REQUEST_RECORD_PERMISSION = 100;
-    public VoiceFragment voiceFragment;
-    public ObjectDetectionFragment fragment;
-    public MapsFragment mapFragment;
+    public static final int REQUEST_ALL = 100;
+    public static final int REQUEST_CAMERA = 200;
+    public static final int REQUEST_RECORD = 300;
+    public static final int REQUEST_LOCATION = 400;
+
+    VoiceFragment voice;
+    MapsFragment maps;
+    ObjectDetectionFragment objectDetection;
+    FragmentManager fragmentManager;
+
     private Button speakButton;
-    private String TAG="replace fragment";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //boton principal
+        // Boton principal
         speakButton =  findViewById(R.id.btnMic);
         speakButton.setOnClickListener(this);
 
+        // Fragmentos
+        fragmentManager = getSupportFragmentManager();
 
-        voiceFragment = new VoiceFragment();
         if (savedInstanceState == null) {
-            getSupportFragmentManager().beginTransaction().add(R.id.container, voiceFragment).commit();
+            voice = new VoiceFragment();
+            fragmentManager.beginTransaction().add(R.id.voiceFragment, voice).commit();
+            maps = new MapsFragment();
+            fragmentManager.beginTransaction().add(R.id.mapsFragment, maps).commit();
+            findViewById(R.id.mapsFragment).setVisibility(View.INVISIBLE);
+            objectDetection = new ObjectDetectionFragment();
+            fragmentManager.beginTransaction().add(R.id.objectDetectionFragment, objectDetection).commit();
+            findViewById(R.id.objectDetectionFragment).setVisibility(View.INVISIBLE);
         }
 
-        mapFragment = new MapsFragment();
+        String[] PERMISSIONS = {
+                android.Manifest.permission.RECORD_AUDIO,
+                android.Manifest.permission.CAMERA,
+                android.Manifest.permission.ACCESS_FINE_LOCATION,
+                android.Manifest.permission.ACCESS_COARSE_LOCATION
+        };
 
-
-
-
-        /*// crea el fragmento de voz
-        fragment = new ObjectDetectionFragment();
-        if (savedInstanceState == null) {
-            getSupportFragmentManager().beginTransaction().add(R.id.container, fragment).commit();
-        }*/
-
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, CAMERA_REQUEST_CODE);
-        ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_PERMISSION);
+        if(!hasPermissions(this, PERMISSIONS)){
+            ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_ALL);
+        }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
         switch (requestCode) {
-            //verific si hay permiso para usar el microfono
-            case CAMERA_REQUEST_CODE: {
+            case REQUEST_CAMERA:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                    //voiceFragment.recordSpeak();
+                    // Granted
                 } else {
-                    Toast.makeText(getApplicationContext(), "Tu dispositivo no permite el uso de la camara", Toast.LENGTH_SHORT).show();
+                    // Not granted
                 }
-            }
-
-            case REQUEST_RECORD_PERMISSION: {
+                break;
+            case REQUEST_RECORD:
                 if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                   //voiceFragment.recordSpeak();
+                    // Granted
                 } else {
-                    Toast.makeText(getApplicationContext(), "Tu dispositivo no permite la función de text to speech", Toast.LENGTH_SHORT).show();
+                    // Not granted
                 }
-            }
-
-            // los otros casos pueden ser otros permisos que la palicación necesite verificar que tiene
-        }
-    }
-
-    /**
-     * Change the current displayed fragment by a new one.
-     * - if the fragment is in backstack, it will pop it
-     * - if the fragment is already displayed (trying to change the fragment with the same), it will not do anything
-     *
-     * @param frag            the new fragment to display
-     * @param saveInBackstack if we want the fragment to be in backstack
-     * @param animate         if we want a nice animation or not
-     */
-    public void changeFragment(Fragment frag, boolean saveInBackstack, boolean animate) {
-        String backStateName = ((Object) frag).getClass().getName();
-
-        try {
-            FragmentManager manager = getSupportFragmentManager();
-            boolean fragmentPopped = manager.popBackStackImmediate(backStateName, 0);
-
-            if (!fragmentPopped && manager.findFragmentByTag(backStateName) == null) {
-                //fragment not in back stack, create it.
-                android.support.v4.app.FragmentTransaction transaction = manager.beginTransaction();
-
-                if (animate) {
-                    Log.d(TAG, "Change Fragment: animate");
-                    transaction.setCustomAnimations(R.anim.slide_in_left, R.anim.slide_out_left, R.anim.slide_in_left, R.anim.slide_out_right);
-                }
-
-                transaction.replace(R.id.container, frag, backStateName);
-
-                if (saveInBackstack) {
-                    Log.d(TAG, "Change Fragment: addToBackTack " + backStateName);
-                    transaction.addToBackStack(backStateName);
+                break;
+            case REQUEST_LOCATION:
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    // Granted
                 } else {
-                    Log.d(TAG, "Change Fragment: NO addToBackTack");
+                    // Not granted
                 }
-
-                transaction.commit();
-            } else {
-                // custom effect if fragment is already instanciated
-            }
-        } catch (IllegalStateException exception) {
-            Log.w(TAG, "Unable to commit fragment, could be activity as been killed in background. " + exception.toString());
+                break;
         }
     }
 
@@ -130,8 +96,57 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
      */
     public void onClick(View v) {
         if (v.getId() == R.id.btnMic) {
-            voiceFragment.recordSpeak();
-            //fragment.detect();
+            voice.recordSpeak(new VoiceFragment.VoiceCallback() {
+                @Override
+                public void onSpeechResult(VoiceFragment.VoiceResult result, String... params) {
+                    switch (result)
+                    {
+                        case Location:
+                            showMaps();
+                            voice.textToVoice(maps.showCurrentPlace());
+                            break;
+                        case Route:
+                            break;
+                        case Detection:
+                            break;
+
+                    }
+                }
+
+                @Override
+                public void onError(String message) {
+                    voice.textToVoice(message);
+                }
+            });
         }
+    }
+
+    private void showMaps()
+    {
+        findViewById(R.id.mapsFragment).setVisibility(View.VISIBLE);
+        FragmentTransaction ft = fragmentManager.beginTransaction();
+        ft.setCustomAnimations(R.anim.slide_in_right,0);
+        ft.show(maps);
+        ft.commit();
+    }
+
+    private void showObjectDetection()
+    {
+        findViewById(R.id.objectDetectionFragment).setVisibility(View.VISIBLE);
+        FragmentTransaction ft = fragmentManager.beginTransaction();
+        ft.setCustomAnimations(R.anim.slide_in_right,0);
+        ft.show(objectDetection);
+        ft.commit();
+    }
+
+    public static boolean hasPermissions(Context context, String... permissions) {
+        if (context != null && permissions != null) {
+            for (String permission : permissions) {
+                if (ActivityCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 }

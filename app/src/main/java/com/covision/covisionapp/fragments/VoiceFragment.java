@@ -15,7 +15,6 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import com.covision.covisionapp.MainActivity;
@@ -26,27 +25,37 @@ import java.util.ArrayList;
 import java.util.Locale;
 
 public class VoiceFragment extends Fragment {
-    private TextView result;
     private ProgressBar progressBar;
 
     private TextToSpeech toSpeech;
     private int res;
     private SpeechRecognizer sr;
-    private String text;
 
     private static final String TAG = "MainFragment";
     private String LOG_TAG = "SpeechToTextActivity";
     private String[] options = {"llevame a", "donde estoy", "frente"};
 
+    private VoiceCallback callback;
+
+    public enum VoiceResult {
+        Location,
+        Route,
+        Detection
+    }
+
     public VoiceFragment() {
         // Required empty public constructor
+    }
+
+    public interface VoiceCallback {
+        void onSpeechResult(VoiceResult result, String... params);
+        void onError(String message);
     }
 
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         // infla el layout del fragmento
         View myView = inflater.inflate(R.layout.fragment_voice, container, false);
-        result =  myView.findViewById(R.id.textSpeech);
         progressBar = myView.findViewById(R.id.progressBar);
         progressBar.setVisibility(View.INVISIBLE);
 
@@ -117,11 +126,12 @@ public class VoiceFragment extends Fragment {
         }
     }
 
-    public void recordSpeak() {
+    public void recordSpeak(VoiceCallback callback) {
+        this.callback = callback;
         //si la app no tiene permiso para usar microfono, lo pide
         if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             Log.v(TAG, "asking for permissions");
-            ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.RECORD_AUDIO}, MainActivity.REQUEST_RECORD_PERMISSION);
+            ActivityCompat.requestPermissions(getActivity(), new String[]{Manifest.permission.RECORD_AUDIO}, MainActivity.REQUEST_RECORD);
         } else {
             progressBar.setVisibility(View.VISIBLE);
             progressBar.setIndeterminate(true);
@@ -131,8 +141,6 @@ public class VoiceFragment extends Fragment {
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
             intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
-
-           // ((MainActivity)getActivity()).changeFragment( ((MainActivity)getActivity()).mapFragment,true,true);
 
             sr.startListening(intent);
             Log.i(TAG, "Intent sent");
@@ -144,18 +152,14 @@ public class VoiceFragment extends Fragment {
      */
     public void logthis(String newinfo) {
         if (newinfo.compareTo("") != 0) {
-            text = newinfo;
-            analizeSpeech();
-            result.setText(text);
-            textToVoice(text);
+            analizeSpeech(newinfo);
         }
     }
     /*
      * método que debe revisar el comando recibido por el usuario
      */
-    public void analizeSpeech(){
-        String speech = text;
-        speech= Normalizer.normalize(speech, Normalizer.Form.NFD).replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+    public void analizeSpeech(String speech){
+        speech = Normalizer.normalize(speech, Normalizer.Form.NFD).replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
         speech = speech.toLowerCase();
         int opt = -1;
         Log.i(LOG_TAG, "analize: normalizó a "+ speech);
@@ -168,24 +172,20 @@ public class VoiceFragment extends Fragment {
                 if(speech.contains(" a ")){
                     //puede ser a, al, a la
                     String[] div = speech.split(" a ");
-                    text = "calculando ruta a destino: "+div[1];
+                    this.callback.onSpeechResult(VoiceResult.Route, div[1]);
                 }
                 break;
             case 1:
-                MapsFragment mp= ((MainActivity)getActivity()).mapFragment;
-                text = mp.showCurrentPlace();
-                textToVoice(text);
-                ((MainActivity)getActivity()).changeFragment( ((MainActivity)getActivity()).mapFragment,true,true);
+                this.callback.onSpeechResult(VoiceResult.Location);
                 break;
             case 2:
-                text = "al frente tienes una persona";
+                this.callback.onSpeechResult(VoiceResult.Detection);
                 break;
 
             default:
-                text = "Lo siento, esa no es una opción disponible. Intenta de nuevo porfavor";
+                this.callback.onError("Lo siento, esa no es una opción disponible. Intenta de nuevo porfavor");
                 break;
         }
-        Log.i(LOG_TAG, "text es: "+text);
     }
 
     /*

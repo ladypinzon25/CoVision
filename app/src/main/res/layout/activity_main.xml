@@ -2,14 +2,14 @@
 <android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/container"
+    android:id="@+id/main_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:fitsSystemWindows="true"
     tools:context=".MainActivity"
     android:background="@color/yellowCoVision">
 
     <Button
-
         android:backgroundTint="@color/greyCoVision"
         android:id="@+id/btnMic"
         android:layout_width="105dp"
@@ -33,5 +33,28 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent" />
+
+    <FrameLayout
+        android:id="@+id/voiceFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/mapsFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent">
+
+    </FrameLayout>
+
+    <FrameLayout
+        android:id="@+id/objectDetectionFragment"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent">
+
+    </FrameLayout>
 
 </android.support.constraint.ConstraintLayout>
