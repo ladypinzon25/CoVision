@@ -132,6 +132,8 @@ public class VoiceFragment extends Fragment {
             intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.getDefault());
             intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
 
+           // ((MainActivity)getActivity()).changeFragment( ((MainActivity)getActivity()).mapFragment,true,true);
+
             sr.startListening(intent);
             Log.i(TAG, "Intent sent");
         }
@@ -170,7 +172,10 @@ public class VoiceFragment extends Fragment {
                 }
                 break;
             case 1:
-                text = "te encuentras en: ...";
+                MapsFragment mp= ((MainActivity)getActivity()).mapFragment;
+                text = mp.showCurrentPlace();
+                textToVoice(text);
+                ((MainActivity)getActivity()).changeFragment( ((MainActivity)getActivity()).mapFragment,true,true);
                 break;
             case 2:
                 text = "al frente tienes una persona";
