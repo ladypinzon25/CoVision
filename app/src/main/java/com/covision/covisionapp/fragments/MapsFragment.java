@@ -40,7 +40,9 @@ import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapView;
 import com.google.android.gms.maps.MapsInitializer;
 import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.Task;
@@ -49,12 +51,13 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MapsFragment extends Fragment implements OnMapReadyCallback, LocationListener {
-    int TAG_CODE_PERMISSION_LOCATION=2;
+public class MapsFragment extends Fragment implements OnMapReadyCallback, LocationListener, GoogleMap.OnMarkerClickListener, GoogleMap.OnMarkerDragListener, GoogleMap.OnMapClickListener, com.google.android.gms.location.LocationListener {
+    int TAG_CODE_PERMISSION_LOCATION = 2;
     private static final String TAG = "MapActivity";
     private static final String FINE_LOCATION = Manifest.permission.ACCESS_FINE_LOCATION;
     private static final String COURSE_LOCATION = Manifest.permission.ACCESS_COARSE_LOCATION;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1234;
+    private static final int LOCATION_REQUEST_CODE = 500;
     private static final float DEFAULT_ZOOM = 15f;
 
     //widgets
@@ -66,9 +69,17 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     private FusedLocationProviderClient mFusedLocationProviderClient;
     private PlaceDetectionClient mPlaceDetectionClient;
 
+
     MapView mapView;
     GoogleMap mMap;
     public LocationManager locationManager;
+
+
+    //distance between points
+    double end_latitude, end_longitude;
+    private Location lastLocation;
+    double latitude,longitude;
+    private Marker currentMarkerLocation;
 
 
     @Override
@@ -118,10 +129,11 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     @Override
     public void onMapReady(GoogleMap googleMap) {
 
-
         Toast.makeText(getActivity(), "Map is Ready", Toast.LENGTH_SHORT).show();
         Log.d(TAG, "onMapReady: map is ready");
         mMap = googleMap;
+
+        mMap.getUiSettings().setZoomControlsEnabled(true);
 
         if (mLocationPermissionsGranted) {
             getDeviceLocation();
@@ -132,12 +144,12 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
                 return;
             }
             mMap.setMyLocationEnabled(true);
-            mMap.getUiSettings().setMyLocationButtonEnabled(false);
+            mMap.getUiSettings().setMyLocationButtonEnabled(true);
 
             init();
         }
 
-        mMap.getUiSettings().setMyLocationButtonEnabled(false);
+
         if (ContextCompat.checkSelfPermission(getContext(), android.Manifest.permission.ACCESS_FINE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED &&
                 ContextCompat.checkSelfPermission(getActivity(), android.Manifest.permission.ACCESS_COARSE_LOCATION) ==
@@ -157,6 +169,10 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
                             Manifest.permission.ACCESS_COARSE_LOCATION },
                     TAG_CODE_PERMISSION_LOCATION);
         }
+
+
+        mMap.setOnMarkerDragListener(this);
+        mMap.setOnMapClickListener(this);
 
     }
 
@@ -207,6 +223,9 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
             Log.d(TAG, "geoLocate: found a location: " + address.toString());
             //Toast.makeText(this, address.toString(), Toast.LENGTH_SHORT).show();
 
+            /*latitude=address.getLatitude();
+            longitude=address.getLongitude();*/
+
             moveCamera(new LatLng(address.getLatitude(), address.getLongitude()), DEFAULT_ZOOM,
                     address.getAddressLine(0));
         }
@@ -227,10 +246,14 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
                             if(task.isSuccessful()){
                                 Log.d(TAG, "onComplete: found location!");
                                 Location currentLocation = (Location) task.getResult();
+                                latitude=currentLocation.getLatitude();
+                                longitude=currentLocation.getLongitude();
                                 moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()),
                                         DEFAULT_ZOOM,
                                         "My Location");
                                 locationMessage[0] =showCurrentPlace();
+                                updateLocation(currentLocation);
+
                             }else{
                                 Log.d(TAG, "onComplete: current location is null");
                                 Toast.makeText(getActivity(), "unable to get current location", Toast.LENGTH_SHORT).show();
@@ -315,16 +338,50 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
                     mLocationPermissionsGranted = true;
                 }
             }
+
         }
+
     }
 
     @Override
     public void onLocationChanged(Location location) {
-        //Hey, a non null location! Sweet!
+        lastLocation=location;
+        if(currentMarkerLocation!=null){
+            currentMarkerLocation.remove();
+        }
+        latitude=location.getLatitude();
+        longitude=location.getLongitude();
+        LatLng ltn = new LatLng(location.getLatitude(),location.getLongitude());
+        MarkerOptions mop= new MarkerOptions();
+        mop.position(ltn);
+        mop.draggable(true);
+        mop.title("Current position");
+        mop.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
+        currentMarkerLocation=mMap.addMarker(mop);
 
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(ltn));
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(11));
         //remove location callback:
         locationManager.removeUpdates(this);
+    }
 
+    public void updateLocation(Location location){
+        lastLocation=location;
+        if(currentMarkerLocation!=null){
+            currentMarkerLocation.remove();
+        }
+        latitude=location.getLatitude();
+        longitude=location.getLongitude();
+        LatLng ltn = new LatLng(location.getLatitude(),location.getLongitude());
+        MarkerOptions mop= new MarkerOptions();
+        mop.position(ltn);
+        mop.draggable(true);
+        mop.title("Current position");
+        mop.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_MAGENTA));
+        currentMarkerLocation=mMap.addMarker(mop);
+
+        mMap.moveCamera(CameraUpdateFactory.newLatLng(ltn));
+        mMap.animateCamera(CameraUpdateFactory.zoomTo(11));
     }
 
     @Override
@@ -383,5 +440,47 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
             });
         }
         return rta[0];
+    }
+
+    public void pressButtonx(){
+        mMap.clear();
+        MarkerOptions mop = new MarkerOptions();
+        mop.position(new LatLng(end_latitude,end_longitude));
+        mop.title("Destination ");
+        mop.draggable(true);
+        float results[]= new float[10];
+        Location.distanceBetween(latitude,longitude,end_latitude,end_longitude,results);
+        mop.snippet("Distance = "+results[0]);
+        mMap.addMarker(mop);
+    }
+
+    @Override
+    public boolean onMarkerClick(Marker marker) {
+        marker.setDraggable(true);
+        return false;
+    }
+
+    @Override
+    public void onMarkerDragStart(Marker marker) {
+
+    }
+
+    @Override
+    public void onMarkerDrag(Marker marker) {
+
+    }
+
+    @Override
+    public void onMarkerDragEnd(Marker marker) {
+
+        end_latitude=marker.getPosition().latitude;
+        end_longitude=marker.getPosition().longitude;
+        pressButtonx();
+
+    }
+
+    @Override
+    public void onMapClick(LatLng latLng) {
+
     }
 }
