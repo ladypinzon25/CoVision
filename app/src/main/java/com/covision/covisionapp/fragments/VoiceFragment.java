@@ -62,6 +62,19 @@ public class VoiceFragment extends Fragment {
         //crea el SpeechRecognizer y su listener
         sr = SpeechRecognizer.createSpeechRecognizer(getActivity());
         sr.setRecognitionListener(new listener());
+
+        toSpeech = new TextToSpeech(this.getContext(), new TextToSpeech.OnInitListener() {
+            @Override
+            public void onInit(int status) {
+                if (status == TextToSpeech.SUCCESS) {
+                    res = toSpeech.setLanguage(Locale.getDefault());
+                }
+                if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    Toast.makeText(getActivity(), "Tu dispositivo no soporta la función de text to speech", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
         return myView;
     }
 
@@ -192,20 +205,11 @@ public class VoiceFragment extends Fragment {
      * método para pasar de texto a voz
      */
     public void textToVoice(final String message){
-        toSpeech = new TextToSpeech(getContext(), new TextToSpeech.OnInitListener() {
-            @Override
-            public void onInit(int status) {
-                if(status == TextToSpeech.SUCCESS){
-                    res = toSpeech.setLanguage(Locale.getDefault());
-                }
-                if(res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED){
-                    Toast.makeText(getActivity(), "Tu dispositivo no soporta la función de text to speech", Toast.LENGTH_SHORT).show();
-                }
-                else if (message !=null){
-                    Log.i(LOG_TAG, "entra else textToSpeach");
-                    toSpeech.speak(message, TextToSpeech.QUEUE_FLUSH, null, null);
-                }
-            }
-        });
+
+        if (message !=null){
+            Log.i(LOG_TAG, "entra else textToSpeach");
+            toSpeech.speak(message, TextToSpeech.QUEUE_FLUSH, null, null);
+        }
+
     }
 }
