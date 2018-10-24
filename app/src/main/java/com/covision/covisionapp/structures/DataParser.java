@@ -3,6 +3,8 @@ package com.covision.covisionapp.structures;
 import java.util.HashMap;
 import android.util.Log;
 
+import com.android.volley.toolbox.JsonObjectRequest;
+
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -19,17 +21,20 @@ public class DataParser {
         String duration="";
         String distance="";
 
-        Log.d("Json RESPONSE ", googleDirectionsJson.toString());
-
-        try {
-            duration= googleDirectionsJson.getJSONObject(0).getJSONObject("duration").getString("text");
-            distance= googleDirectionsJson.getJSONObject(0).getJSONObject("distance").getString("text");
-            googleDirectionsMap.put("duration",duration);
-            googleDirectionsMap.put("distance",distance);
-        } catch (JSONException e) {
-            e.printStackTrace();
+        if(googleDirectionsJson!=null) {
+            Log.d("Json RESPONSE ", googleDirectionsJson.toString());
+            try {
+                duration = googleDirectionsJson.getJSONObject(0).getJSONObject("duration").getString("text");
+                distance = googleDirectionsJson.getJSONObject(0).getJSONObject("distance").getString("text");
+                googleDirectionsMap.put("duration", duration);
+                googleDirectionsMap.put("distance", distance);
+            } catch (JSONException e) {
+                e.printStackTrace();
+            }
+        }else{
+            googleDirectionsMap.put("duration"," No hay duracion disponible ");
+            googleDirectionsMap.put("distance"," No hay ruta exacta disponible ");
         }
-
         return googleDirectionsMap;
     }
     private HashMap<String, String> getPlace(JSONObject googlePlaceJson)
@@ -101,6 +106,51 @@ public class DataParser {
 
         return getDuration(jsonArray);
 
+    }
+
+    public String[] parseDirectionsPaint(String jsonData){
+        JSONArray jsonArray = null;
+        JSONObject jsonObject;
+
+        try {
+            jsonObject = new JSONObject(jsonData);
+            jsonArray= jsonObject.getJSONArray("routes").getJSONObject(0).getJSONArray("legs").getJSONObject(0).getJSONArray("steps");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+
+        return getPaths(jsonArray);
+
+    }
+
+    public String[] getPaths(JSONArray googleStepsJson){
+        String[] polylines = new String[0];
+        if(googleStepsJson!=null){
+            int count= googleStepsJson.length();
+             polylines = new String[count];
+            for(int i =0 ; i<count;i++){
+                try {
+                    polylines[i]=getPath(googleStepsJson.getJSONObject(i));
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
+            }
+        }else{
+           return null;
+        }
+
+        return polylines;
+    }
+
+    public String getPath(JSONObject googlePathJson){
+
+        String polyline ="";
+        try {
+             polyline = googlePathJson.getJSONObject("polyline").getString("points");
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return polyline;
     }
 
 

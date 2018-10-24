@@ -9,30 +9,20 @@
     tools:context=".MainActivity"
     android:background="@color/yellowCoVision">
 
-    <Button
-        android:backgroundTint="@color/greyCoVision"
-        android:id="@+id/btnMic"
-        android:layout_width="105dp"
-        android:layout_height="110dp"
-        android:layout_marginBottom="80dp"
-        android:background="@drawable/microphonelistening"
-        android:padding="16dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
 
-    <Button
-        android:clickable="false"
-        android:backgroundTint="@color/greyCoVision"
-        android:id="@+id/btnOval"
-        android:layout_width="135dp"
-        android:layout_height="140dp"
-        android:layout_marginBottom="68dp"
-        android:background="@drawable/oval"
-        android:padding="16dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        <com.tomer.fadingtextview.FadingTextView
+        android:id="@+id/fading_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:texts="@array/intro_messages"
+        app:timeout="2000" android:gravity="center"
+        android:textSize="30sp"
+            app:layout_constraintLeft_toLeftOf="parent"
+            app:layout_constraintRight_toRightOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toBottomOf="parent"
+        />
+
 
     <FrameLayout
         android:id="@+id/voiceFragment"
@@ -45,16 +35,38 @@
         android:id="@+id/mapsFragment"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent">
+        android:translationX="600dp">
 
     </FrameLayout>
 
     <FrameLayout
         android:id="@+id/objectDetectionFragment"
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:translationX="-600dp">
 
     </FrameLayout>
+
+    <View
+        android:id="@+id/myRectangleView"
+        android:layout_width="match_parent"
+        android:layout_height="225dp"
+        android:background="@drawable/circle_frame"
+        android:padding="12dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <Button
+        android:id="@+id/btnMic"
+        android:layout_width="105dp"
+        android:layout_height="110dp"
+        android:layout_marginBottom="82dp"
+        android:background="@drawable/microphonelistening"
+        android:backgroundTint="@color/greyCoVision"
+        android:elevation="10dp"
+        android:padding="17dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent" />
 
 </android.support.constraint.ConstraintLayout>

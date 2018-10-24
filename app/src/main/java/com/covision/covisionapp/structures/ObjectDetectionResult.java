@@ -1,22 +1,53 @@
 package com.covision.covisionapp.structures;
 
-import java.util.ArrayList;
+import com.google.gson.annotations.SerializedName;
 
 public class ObjectDetectionResult {
-    public String resultText;
-    public ArrayList<BoundingBox> boxes;
+
+    @SerializedName("class")
+    private String className;
+
+    @SerializedName("box")
+    private double[] box;
+
+    @SerializedName("score")
+    private double score;
+
+    @SerializedName("final")
+    private int isFinal;
 
     public ObjectDetectionResult(){
-        this.resultText = "";
-        boxes = new ArrayList<>();
     }
 
-    public void addText(String text)
-    {
-        resultText = text;
+    public String getClassName() {
+        return className;
     }
 
-    public void addBox(BoundingBox newBox){
-        boxes.add(newBox);
+    public void setClassName(String className) {
+        this.className = className;
+    }
+
+    public double[] getBox() {
+        return box;
+    }
+
+    public void setBox(double[] box) {
+        this.box = box;
+    }
+
+    public double getScore() {
+        return score;
+    }
+
+    public void setScore(double score) {
+        this.score = score;
+    }
+
+    public int getIsFinal() {
+        return isFinal;
+    }
+
+    public void setIsFinal(int isFinal) {
+        this.isFinal = isFinal;
     }
 }

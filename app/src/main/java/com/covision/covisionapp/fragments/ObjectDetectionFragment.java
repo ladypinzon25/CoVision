@@ -3,7 +3,12 @@ package com.covision.covisionapp.fragments;
 import android.content.Context;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.ColorFilter;
+import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
+import android.graphics.drawable.BitmapDrawable;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -22,13 +27,14 @@ import android.view.Surface;
 import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Toast;
+import android.widget.ImageView;
 
 import com.covision.covisionapp.R;
 import com.covision.covisionapp.structures.ObjectDetectionResult;
 import com.covision.covisionapp.workers.ObjectDetectionWorker;
 
 import java.util.Collections;
+import java.util.List;
 
 public class ObjectDetectionFragment extends Fragment {
     private CameraManager cameraManager;
@@ -37,6 +43,7 @@ public class ObjectDetectionFragment extends Fragment {
     private CaptureRequest.Builder captureRequestBuilder;
     private int cameraFacing;
     private String cameraId = null;
+    private ImageView imageView;
     private TextureView textureView;
     private TextureView.SurfaceTextureListener surfaceTextureListener;
     private Size previewSize;
@@ -44,53 +51,66 @@ public class ObjectDetectionFragment extends Fragment {
     private Handler backgroundHandler;
     private HandlerThread backgroundThread;
     private CameraDevice.StateCallback stateCallback;
+    private DetectionMessageCallback detectCallback;
 
     private boolean cameraOpened = false;
+
+    private Bitmap workingImage;
 
     public ObjectDetectionFragment() {
         // Required empty public constructor
     }
 
     public interface ObjectDetectionCallback {
-        void onDetectionResult(ObjectDetectionResult result);
+        void onDetectionResult(List<ObjectDetectionResult> result);
         void onError(String message);
     }
 
-    public void prepareCamera()
-    {
-        if (!cameraOpened) openCamera();
+    public interface DetectionMessageCallback {
+        void onDetectionResult(String result);
+        void onError(String message);
     }
 
-    public void detect()
+    public void detect(DetectionMessageCallback callback)
     {
+        detectCallback = callback;
         if (textureView.isAvailable() && cameraId != null)
         {
             if (!cameraOpened) openCamera();
 
-            Bitmap image = textureView.getBitmap();
+            final Bitmap image = textureView.getBitmap();
+            workingImage = image.copy(image.getConfig(), true);
+            final Canvas canvas = new Canvas(workingImage);
+            imageView.setImageBitmap(workingImage);
             new ObjectDetectionWorker(getContext(), image, new ObjectDetectionCallback() {
                 @Override
-                public void onDetectionResult(ObjectDetectionResult result) {
-                    final String text = result.resultText;
-                    ObjectDetectionFragment.this.getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(getContext(), text, Toast.LENGTH_SHORT).show();
+                public void onDetectionResult(List<ObjectDetectionResult> result) {
+                    Paint paint = new Paint();
+                    paint.setARGB(1, 100, 100, 100);
+                    String text = "";
+                    for (ObjectDetectionResult box: result){
+                        if (box.getIsFinal()==1) {
+                            text = box.getClassName();
+                            if (text.split("\n").length == 1) text = "No encontre ningun objeto";
                         }
-                    });
+                        else
+                        {
+                            double[] rect = box.getBox();
+                            canvas.drawRect((float)rect[0],(float)rect[1],(float)rect[2],(float)rect[3],paint);
+                        }
+                    }
+                    detectCallback.onDetectionResult(text);
                 }
 
                 @Override
                 public void onError(String message) {
-                    final String text = "Ocurrio un problema al conectarse con el servidor";
-                    ObjectDetectionFragment.this.getActivity().runOnUiThread(new Runnable() {
-                        @Override
-                        public void run() {
-                            Toast.makeText(getContext(), text, Toast.LENGTH_SHORT).show();
-                        }
-                    });
+                    detectCallback.onError("Ocurrio un problema al conectarse con el servidor, vuelve a intentarlo");
                 }
-            }).start();
+            }).execute();
+        }
+        else
+        {
+            detectCallback.onError("Ocurrio un problema al abrir la camara");
         }
     }
 
@@ -102,6 +122,7 @@ public class ObjectDetectionFragment extends Fragment {
         cameraManager = (CameraManager) getActivity().getSystemService(Context.CAMERA_SERVICE);
         cameraFacing = CameraCharacteristics.LENS_FACING_BACK;
         textureView = myView.findViewById(R.id.texture_view);
+        imageView = myView.findViewById(R.id.image_view);
 
         surfaceTextureListener = new TextureView.SurfaceTextureListener() {
             @Override
@@ -150,13 +171,13 @@ public class ObjectDetectionFragment extends Fragment {
 
     @Override
     public void onResume() {
-        super.onResume();
         openBackgroundThread();
         if (textureView.isAvailable()) {
             setUpCamera();
         } else {
             textureView.setSurfaceTextureListener(surfaceTextureListener);
         }
+        super.onResume();
     }
 
     private void setUpCamera() {
@@ -170,6 +191,7 @@ public class ObjectDetectionFragment extends Fragment {
                             CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                     previewSize = streamConfigurationMap.getOutputSizes(SurfaceTexture.class)[0];
                     this.cameraId = cameraId;
+                    if (!cameraOpened) openCamera();
                 }
             }
         } catch (CameraAccessException e) {

@@ -30,11 +30,9 @@ public class VoiceFragment extends Fragment {
     private TextToSpeech toSpeech;
     private int res;
     private SpeechRecognizer sr;
-
     private static final String TAG = "MainFragment";
     private String LOG_TAG = "SpeechToTextActivity";
-    private String[] options = {"llevame a", "donde estoy", "frente"};
-
+    private String[] options = {"llevame a", "donde estoy", "frente", "adelante"};
     private VoiceCallback callback;
 
     public enum VoiceResult {
@@ -67,13 +65,14 @@ public class VoiceFragment extends Fragment {
             @Override
             public void onInit(int status) {
                 if (status == TextToSpeech.SUCCESS) {
-                    res = toSpeech.setLanguage(Locale.getDefault());
+                    res = toSpeech.setLanguage(new Locale("es", "ES"));
                 }
                 if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
                     Toast.makeText(getActivity(), "Tu dispositivo no soporta la función de text to speech", Toast.LENGTH_SHORT).show();
                 }
             }
         });
+
 
         return myView;
     }
@@ -194,9 +193,11 @@ public class VoiceFragment extends Fragment {
             case 2:
                 this.callback.onSpeechResult(VoiceResult.Detection);
                 break;
-
+            case 3:
+                this.callback.onSpeechResult(VoiceResult.Detection);
+                break;
             default:
-                this.callback.onError("Lo siento, esa no es una opción disponible. Intenta de nuevo porfavor");
+                this.callback.onError("Lo siento, esa no es una opción disponible.");
                 break;
         }
     }

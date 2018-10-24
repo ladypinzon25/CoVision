@@ -1,6 +1,7 @@
 package com.covision.covisionapp.fragments;
 
 import android.Manifest;
+import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Address;
@@ -15,6 +16,7 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AlertDialog;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.LayoutInflater;
@@ -29,6 +31,7 @@ import android.widget.Toast;
 
 import com.covision.covisionapp.R;
 import com.covision.covisionapp.structures.GetDirectionsData;
+import com.covision.covisionapp.workers.GetDirectionsDataRoutes;
 import com.google.android.gms.location.FusedLocationProviderClient;
 import com.google.android.gms.location.LocationServices;
 import com.google.android.gms.location.places.PlaceDetectionClient;
@@ -58,8 +61,8 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     private static final String FINE_LOCATION = Manifest.permission.ACCESS_FINE_LOCATION;
     private static final String COURSE_LOCATION = Manifest.permission.ACCESS_COARSE_LOCATION;
     private static final int LOCATION_PERMISSION_REQUEST_CODE = 1234;
-    private static final int LOCATION_REQUEST_CODE = 500;
     private static final float DEFAULT_ZOOM = 15f;
+    final String[] rta = {""};
 
     //widgets
     private EditText mSearchText;
@@ -69,7 +72,6 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     private Boolean mLocationPermissionsGranted = false;
     private FusedLocationProviderClient mFusedLocationProviderClient;
     private PlaceDetectionClient mPlaceDetectionClient;
-
 
     MapView mapView;
     GoogleMap mMap;
@@ -86,6 +88,13 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     private Object[] dataTransfer;
     private String url ;
 
+    public String[] getRta() {
+        return rta;
+    }
+
+    public void setRta(String text) {
+        rta[0] = text;
+    }
 
     @Override
     public void onCreate(@Nullable Bundle savedInstanceState) {
@@ -95,23 +104,20 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     @Override
     public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View v = inflater.inflate(R.layout.fragment_maps, container, false);
-
+        getLocationPermission();
         mapView = (MapView) v.findViewById(R.id.mapview);
         mapView.onCreate(savedInstanceState);
-
         // Gets to GoogleMap from the MapView and does initialization stuff
         mapView.getMapAsync(this);
-
         mSearchText = (EditText) v.findViewById(R.id.input_search);
         mGps = (ImageView) v.findViewById(R.id.ic_gps);
-        getLocationPermission();
-
         return v;
     }
 
     @Override
     public void onResume() {
         mapView.onResume();
+
         super.onResume();
     }
 
@@ -133,16 +139,11 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
 
     @Override
     public void onMapReady(GoogleMap googleMap) {
-
-        Toast.makeText(getActivity(), "Map is Ready", Toast.LENGTH_SHORT).show();
         Log.d(TAG, "onMapReady: map is ready");
         mMap = googleMap;
-
         mMap.getUiSettings().setZoomControlsEnabled(true);
-
+        getDeviceLocation();
         if (mLocationPermissionsGranted) {
-            getDeviceLocation();
-
             if (ActivityCompat.checkSelfPermission(getContext(), Manifest.permission.ACCESS_FINE_LOCATION)
                     != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(getContext(),
                     Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
@@ -150,7 +151,6 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
             }
             mMap.setMyLocationEnabled(true);
             mMap.getUiSettings().setMyLocationButtonEnabled(true);
-
             init();
         }
 
@@ -212,8 +212,9 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     }
 
 
-    public void geoLocate(String searchString){
+    public String geoLocate(String searchString){
         Log.d(TAG, "geoLocate: geolocating");
+        String dist = "";
 
         if (searchString == "") searchString = mSearchText.getText().toString();
         Geocoder geocoder = new Geocoder(getContext());
@@ -234,8 +235,22 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
 
             moveCamera(new LatLng(address.getLatitude(), address.getLongitude()), DEFAULT_ZOOM,
                     address.getAddressLine(0));
+
+            end_latitude=address.getLatitude();
+            end_longitude=address.getLongitude();
+            dist=putMarkerDistanceOF();
+            durationOF();
+
+            paintDirections();
+
         }
+        if(dist.equals("")){
+            return "error";
+        }
+        return dist;
     }
+
+
 
 
     private String getDeviceLocation(){
@@ -253,9 +268,23 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
                             if(task.isSuccessful()){
                                 Log.d(TAG, "onComplete: found location!");
                                 Location currentLocation = (Location) task.getResult();
-                                latitude=currentLocation.getLatitude();
-                                longitude=currentLocation.getLongitude();
-                                moveCamera(new LatLng(currentLocation.getLatitude(), currentLocation.getLongitude()),
+                                //valida que no sea nulo
+                                if(currentLocation==null){
+
+                                    latitude=4.627590;
+                                    longitude=-74.080824;
+                                    currentLocation= new Location("");
+                                    currentLocation.setLongitude(4.627590);
+                                    currentLocation.setLatitude(-74.080824);
+                                    Toast.makeText(getActivity(),
+                                            "Please check your gps signal", Toast.LENGTH_LONG).show();
+
+                                }else{
+                                    latitude=currentLocation.getLatitude();
+                                    longitude=currentLocation.getLongitude();
+                                }
+
+                                moveCamera(new LatLng(latitude, longitude),
                                         DEFAULT_ZOOM,
                                         "My Location");
                                 locationMessage[0] =showCurrentPlace();
@@ -280,6 +309,7 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
 
     private void moveCamera(LatLng latLng, float zoom, String title){
         Log.d(TAG, "moveCamera: moving the camera to: lat: " + latLng.latitude + ", lng: " + latLng.longitude );
+
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, zoom));
 
         if(!title.equals("My Location")){
@@ -298,8 +328,6 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
 
     private void getLocationPermission(){
         locationManager = (LocationManager)  getActivity().getSystemService(getContext().LOCATION_SERVICE);
-
-
         Log.d(TAG, "getLocationPermission: getting location permissions");
         String[] permissions = {Manifest.permission.ACCESS_FINE_LOCATION,
                 Manifest.permission.ACCESS_COARSE_LOCATION};
@@ -308,24 +336,56 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
             if(ContextCompat.checkSelfPermission(getActivity().getApplicationContext(),
                     COURSE_LOCATION) == PackageManager.PERMISSION_GRANTED){
                 mLocationPermissionsGranted = true;
-
                 //verificar si el GPS está encendido
                 if (!locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
                     Log.d(TAG, "el GPS no está activado");
-                    Intent intent1 = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
-                    startActivity(intent1);
+                    showSettingsAlert();
                 }
+                /*if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)){
+                    getDeviceLocation();
+                }*/
             }else{
-                ActivityCompat.requestPermissions(getActivity(),
-                        permissions,
-                        LOCATION_PERMISSION_REQUEST_CODE);
+                ActivityCompat.requestPermissions(getActivity(), permissions, LOCATION_PERMISSION_REQUEST_CODE);
             }
         }else{
-            ActivityCompat.requestPermissions(getActivity(),
-                    permissions,
-                    LOCATION_PERMISSION_REQUEST_CODE);
+            ActivityCompat.requestPermissions(getActivity(), permissions, LOCATION_PERMISSION_REQUEST_CODE);
         }
     }
+
+    /**
+     * Function to show settings alert dialog
+     * */
+    public void showSettingsAlert(){
+        AlertDialog.Builder alertDialog = new AlertDialog.Builder(getContext());
+
+        // Setting Dialog Title
+        alertDialog.setTitle("GPS is settings");
+
+        // Setting Dialog Message
+        alertDialog.setMessage("GPS is not enabled. Do you want to go to settings menu?");
+
+        // Setting Icon to Dialog
+        //alertDialog.setIcon(R.drawable.delete);
+
+        // On pressing Settings button
+        alertDialog.setPositiveButton("Settings", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog,int which) {
+                Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
+                getContext().startActivity(intent);
+            }
+        });
+
+        // on pressing cancel button
+        alertDialog.setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+            public void onClick(DialogInterface dialog, int which) {
+                dialog.cancel();
+            }
+        });
+
+        // Showing Alert Message
+        alertDialog.show();
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         Log.d(TAG, "onRequestPermissionsResult: called.");
@@ -372,14 +432,28 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
         locationManager.removeUpdates(this);
     }
 
-    public void durationOF(){
-        dataTransfer = new Object[2];
+    public String putMarkerDistanceOF(){
+        MarkerOptions mop = new MarkerOptions();
+        mop.position(new LatLng(end_latitude,end_longitude));
+        mop.title("Destination ");
+        mop.draggable(true);
+        float results[]= new float[10];
+        Location.distanceBetween(latitude,longitude,end_latitude,end_longitude,results);
+        mop.snippet("Distance = "+results[0]);
+        mMap.addMarker(mop);
+        Log.d("MAMELO","La distancia"+results[0]);
+        return String.valueOf(results[0]);
+    }
+
+    public String durationOF(){
+        dataTransfer = new Object[3];
         url = getDirectionsUrl();
         GetDirectionsData gtdta= new GetDirectionsData();
         dataTransfer[0]=mMap;
         dataTransfer[1]=url;
+        dataTransfer[2]= new LatLng(end_latitude,end_longitude);
         gtdta.execute(dataTransfer);
-
+        return gtdta.getDuration();
 
     }
     private String getDirectionsUrl(){
@@ -432,7 +506,7 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
 
     //lugar actual, por ahora este método es llamado por getDeviceLocation() pero puede ser llamado desdde cualquier fragmento
     public String showCurrentPlace() {
-        final String[] rta = {""};
+
         if (mMap == null) {
             return rta[0];
         }
@@ -448,36 +522,47 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
             placeResult.addOnCompleteListener(new OnCompleteListener<PlaceLikelihoodBufferResponse>() {
                 @Override
                 public void onComplete(@NonNull Task<PlaceLikelihoodBufferResponse> task) {
-                    PlaceLikelihoodBufferResponse likelyPlaces = task.getResult();
-                    float max = -1;
-                    for (PlaceLikelihood placeLikelihood : likelyPlaces) {
-                        Log.i(TAG, String.format("Place '%s' has likelihood: %g",
-                                placeLikelihood.getPlace().getName(),
-                                placeLikelihood.getLikelihood()));
-                        if(placeLikelihood.getLikelihood() > max){
-                            max = placeLikelihood.getLikelihood();
-                            rta[0] = "Te encuentras en "+ placeLikelihood.getPlace().getName().toString();
+
+                    try{
+                        PlaceLikelihoodBufferResponse likelyPlaces = task.getResult();
+                        float max = -1;
+                        for (PlaceLikelihood placeLikelihood : likelyPlaces) {
+                            Log.i(TAG, String.format("Place '%s' has likelihood: %g",
+                                    placeLikelihood.getPlace().getName(),
+                                    placeLikelihood.getLikelihood()));
+                            if(placeLikelihood.getLikelihood() > max){
+                                max = placeLikelihood.getLikelihood();
+                                setRta("Te encuentras en "+ placeLikelihood.getPlace().getName().toString());
+                            }
                         }
+                        likelyPlaces.release();
+
+                    }catch (Exception e){
+                       e.printStackTrace();
                     }
-                    likelyPlaces.release();
-                    Log.i(TAG, "rta es: "+ rta[0]);
+
+
                 }
+
             });
+            return rta[0];
         }
         return rta[0];
     }
 
-    public void pressButtonx(){
+    public void paintDirections(){
+
         mMap.clear();
-        MarkerOptions mop = new MarkerOptions();
-        mop.position(new LatLng(end_latitude,end_longitude));
-        mop.title("Destination ");
-        mop.draggable(true);
-        float results[]= new float[10];
-        Location.distanceBetween(latitude,longitude,end_latitude,end_longitude,results);
-        mop.snippet("Distance = "+results[0]);
-        mMap.addMarker(mop);
+        dataTransfer = new Object[3];
+        url = getDirectionsUrl();
+        GetDirectionsDataRoutes getDirectionsDataRoutes = new GetDirectionsDataRoutes();
+        dataTransfer[0] = mMap;
+        dataTransfer[1] = url;
+        dataTransfer[2] = new LatLng(end_latitude, end_longitude);
+        getDirectionsDataRoutes.execute(dataTransfer);
     }
+
+
 
     @Override
     public boolean onMarkerClick(Marker marker) {
@@ -498,10 +583,6 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     @Override
     public void onMarkerDragEnd(Marker marker) {
 
-        end_latitude=marker.getPosition().latitude;
-        end_longitude=marker.getPosition().longitude;
-        pressButtonx();
-        //durationOF();
 
     }
 

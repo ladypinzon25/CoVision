@@ -1,4 +1,4 @@
-package com.covision.covisionapp.structures;
+package com.covision.covisionapp.workers;
 
 import android.util.Log;
 import java.io.BufferedReader;
