@@ -7,6 +7,7 @@ import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
@@ -42,22 +43,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public static final int REQUEST_RECORD = 300;
     public static final int REQUEST_LOCATION = 400;
 
-    VoiceFragment voice;
-    MapsFragment maps;
-    ObjectDetectionFragment objectDetection;
-    FragmentManager fragmentManager;
-    FrameLayout mapView;
-    FrameLayout detectionView;
+    private VoiceFragment voice;
+    private MapsFragment maps;
+    private ObjectDetectionFragment objectDetection;
+
+    private FragmentManager fragmentManager;
+
+    private FrameLayout mapView;
+    private FrameLayout detectionView;
     private FadingTextView fadingTextView;
+
     private Button speakButton;
+
     private boolean mapsHidden = true;
     private boolean detectionHidden = true;
-    private Bundle savedInstanceSt;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        savedInstanceSt=savedInstanceState;
+
         // Boton principal
         speakButton =  findViewById(R.id.btnMic);
         speakButton.setOnClickListener(this);
@@ -99,6 +104,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_ALL);
         }
     }
+
     private void displayContextualInfoOnNoInternet(){
         String[] t ={"Revisa tu conexion a internet","Prende el Wifi","Sal del sotano","App no apta para ascensores"};
         fadingTextView.setTexts(t);
@@ -188,10 +194,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                 break;
                             case Detection:
                                 voice.textToVoice("Iniciando análisis de imagen");
-                                showObjectDetection();
                                 objectDetection.detect(new ObjectDetectionFragment.DetectionMessageCallback() {
                                     @Override
                                     public void onDetectionResult(String result) {
+                                        showObjectDetection();
                                         voice.textToVoice(result);
                                     }
 

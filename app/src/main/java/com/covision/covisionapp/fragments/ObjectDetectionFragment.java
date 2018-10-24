@@ -2,13 +2,17 @@ package com.covision.covisionapp.fragments;
 
 import android.content.Context;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.ColorFilter;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.SurfaceTexture;
 import android.graphics.drawable.BitmapDrawable;
+import android.hardware.Sensor;
+import android.hardware.SensorManager;
 import android.hardware.camera2.CameraAccessException;
 import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
@@ -16,6 +20,7 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.params.StreamConfigurationMap;
+import android.media.VolumeShaper;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -77,41 +82,76 @@ public class ObjectDetectionFragment extends Fragment {
         if (textureView.isAvailable() && cameraId != null)
         {
             if (!cameraOpened) openCamera();
-
-            final Bitmap image = textureView.getBitmap();
-            workingImage = image.copy(image.getConfig(), true);
-            final Canvas canvas = new Canvas(workingImage);
-            imageView.setImageBitmap(workingImage);
-            new ObjectDetectionWorker(getContext(), image, new ObjectDetectionCallback() {
+            (new Handler()).postDelayed(new Runnable() {
                 @Override
-                public void onDetectionResult(List<ObjectDetectionResult> result) {
-                    Paint paint = new Paint();
-                    paint.setARGB(1, 100, 100, 100);
-                    String text = "";
-                    for (ObjectDetectionResult box: result){
-                        if (box.getIsFinal()==1) {
-                            text = box.getClassName();
-                            if (text.split("\n").length == 1) text = "No encontre ningun objeto";
-                        }
-                        else
-                        {
-                            double[] rect = box.getBox();
-                            canvas.drawRect((float)rect[0],(float)rect[1],(float)rect[2],(float)rect[3],paint);
-                        }
-                    }
-                    detectCallback.onDetectionResult(text);
+                public void run() {
+                    captureImage();
                 }
-
-                @Override
-                public void onError(String message) {
-                    detectCallback.onError("Ocurrio un problema al conectarse con el servidor, vuelve a intentarlo");
-                }
-            }).execute();
+            }, 1000);
         }
         else
         {
             detectCallback.onError("Ocurrio un problema al abrir la camara");
         }
+    }
+
+    private void captureImage()
+    {
+        Bitmap image = textureView.getBitmap();
+        /*switch (rotation) {
+            case Surface.ROTATION_90:
+                // left or counter-clockwise
+                image = rotateBitmap(image, -90);
+                break;
+            case Surface.ROTATION_270:
+                image = rotateBitmap(image, 90);
+                // Rigth or clockwise
+                break;
+        }*/
+        workingImage = image.copy(image.getConfig(), true);
+        final Canvas canvas = new Canvas(workingImage);
+        imageView.setImageBitmap(workingImage);
+        new ObjectDetectionWorker(getContext(), image, new ObjectDetectionCallback() {
+            @Override
+            public void onDetectionResult(List<ObjectDetectionResult> result) {
+                Paint paint = new Paint();
+                paint.setARGB(1, 100, 100, 100);
+                String text = "";
+                for (ObjectDetectionResult box: result){
+                    if (box.getIsFinal()==1) {
+                        text = box.getClassName();
+                        if (text.split("\n").length == 1) text = "No encontre ningun objeto";
+                    }
+                    else
+                    {
+                        double[] rect = box.getBox();
+                        canvas.drawRect((float)rect[0],(float)rect[1],(float)rect[2],(float)rect[3],paint);
+                    }
+                }
+                detectCallback.onDetectionResult(text);
+            }
+
+            @Override
+            public void onError(String message) {
+                detectCallback.onError("Ocurrio un problema al conectarse con el servidor, vuelve a intentarlo");
+            }
+        }).execute();
+
+        closeCamera();
+    }
+
+    public Bitmap rotateBitmap(Bitmap original, float degrees) {
+        int width = original.getWidth();
+        int height = original.getHeight();
+
+        Matrix matrix = new Matrix();
+        matrix.preRotate(degrees);
+
+        Bitmap rotatedBitmap = Bitmap.createBitmap(original, 0, 0, width, height, matrix, true);
+        Canvas canvas = new Canvas(rotatedBitmap);
+        canvas.drawBitmap(original, 5.0f, 0.0f, null);
+
+        return rotatedBitmap;
     }
 
     @Override
@@ -191,7 +231,6 @@ public class ObjectDetectionFragment extends Fragment {
                             CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
                     previewSize = streamConfigurationMap.getOutputSizes(SurfaceTexture.class)[0];
                     this.cameraId = cameraId;
-                    if (!cameraOpened) openCamera();
                 }
             }
         } catch (CameraAccessException e) {
@@ -278,6 +317,8 @@ public class ObjectDetectionFragment extends Fragment {
             device.close();
             device = null;
         }
+
+        cameraOpened = false;
     }
 
     private void closeBackgroundThread() {
