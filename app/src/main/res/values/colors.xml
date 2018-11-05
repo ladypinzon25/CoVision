@@ -11,4 +11,9 @@
     <color name="redCoVision">#DB3A34</color>
     <color name="greenCoVision">#177E89</color>
 
+    <!-- Navigation map -->
+    <color name="mapboxWhite">#ffffff</color>
+    <color name="mapboxBlue">#4264fb</color>
+    <color name="mapboxGrayLight">#c6d2e1</color>
+
 </resources>
