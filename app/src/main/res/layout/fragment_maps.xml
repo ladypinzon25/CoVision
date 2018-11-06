@@ -5,6 +5,17 @@
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
+    <Button
+        android:id="@+id/startButton"
+        android:layout_height="wrap_content"
+        android:layout_width="fill_parent"
+        android:padding="20px"
+        android:layout_marginTop="50dp"
+        android:text="Start navigation"
+        android:background="@color/mapboxGrayLight"
+        android:textColor="@color/mapboxWhite"
+        android:enabled="false"/>
+
     <com.google.android.gms.maps.MapView android:id="@+id/mapview"
         android:layout_width="fill_parent"
         android:layout_height="fill_parent" />

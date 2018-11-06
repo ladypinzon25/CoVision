@@ -1,6 +1,8 @@
 package com.covision.covisionapp.fragments;
 
 import android.content.Context;
+import android.location.Address;
+import android.location.Geocoder;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v4.app.Fragment;
@@ -57,6 +59,8 @@ import android.view.View;
 import android.widget.Button;
 import com.mapbox.services.android.navigation.ui.v5.NavigationLauncher;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -90,7 +94,6 @@ public class NavigationFragment extends Fragment implements LocationEngineListen
     public static NavigationFragment newInstance(String param1, String param2) {
         NavigationFragment fragment = new NavigationFragment();
         Bundle args = new Bundle();
-
         fragment.setArguments(args);
         return fragment;
     }
@@ -107,21 +110,6 @@ public class NavigationFragment extends Fragment implements LocationEngineListen
         Mapbox.getInstance(getContext(), getString(R.string.access_token));
         mapView = v.findViewById(R.id.mapView);
         mapView.onCreate(savedInstanceState);
-
-
-        button = v.findViewById(R.id.startButton);
-        button.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                boolean simulateRoute = true;
-                NavigationLauncherOptions options = NavigationLauncherOptions.builder()
-                        .directionsRoute(currentRoute)
-                        .shouldSimulateRoute(simulateRoute)
-                        .build();
-                // Call this method with Context from within an Activity
-                NavigationLauncher.startNavigation(getActivity(), options);
-            }
-        });
-
 
         mapView.getMapAsync(new OnMapReadyCallback() {
             @Override
@@ -154,12 +142,12 @@ public class NavigationFragment extends Fragment implements LocationEngineListen
 
         destinationPosition = Point.fromLngLat(destinationCoord.getLongitude(), destinationCoord.getLatitude());
         originPosition = Point.fromLngLat(originCoord.getLongitude(), originCoord.getLatitude());
-        getRoute(originPosition, destinationPosition);
-
+        getRoute(originPosition, destinationPosition,true);
 
     }
 
     private void asig(){
+        Log.d("ASIGN", String.valueOf(originLocation));
         originCoord = new LatLng(originLocation.getLatitude(), originLocation.getLongitude());
         mapboxMa.addOnMapClickListener(this);
     }
@@ -276,7 +264,8 @@ public class NavigationFragment extends Fragment implements LocationEngineListen
     }
 
 
-    private void getRoute(Point origin, Point destination) {
+    private void getRoute(Point origin, Point destination, boolean startTheNav) {
+        Log.e("WTFESTAMIERDAA!!",origin.toString()+"::"+destination.toString());
         NavigationRoute.builder(getContext())
                 .accessToken(Mapbox.getAccessToken())
                 .origin(origin)
@@ -305,8 +294,10 @@ public class NavigationFragment extends Fragment implements LocationEngineListen
                         }
                         navigationMapRoute.addRoute(currentRoute);
 
-                        button.setEnabled(true);
-                        button.setBackgroundResource(R.color.mapboxBlue);
+                        if (startTheNav){
+                            startTheNav();
+                        }
+
 
                     }
 
@@ -328,5 +319,29 @@ public class NavigationFragment extends Fragment implements LocationEngineListen
     public void onDetach() {
         super.onDetach();
 
+    }
+
+    public void startTheNav(){
+        Log.e("ENTROAESTAPUTAMIE!","wtf");
+        boolean simulateRoute = false;
+        NavigationLauncherOptions options = NavigationLauncherOptions.builder()
+                .directionsRoute(currentRoute)
+                .shouldSimulateRoute(simulateRoute)
+                .build();
+        // Call this method with Context from within an Activity
+        NavigationLauncher.startNavigation(getActivity(), options);
+    }
+
+    public void startTheNavRes(){
+        destinationPosition = Point.fromLngLat(destinationCoord.getLongitude(), destinationCoord.getLatitude());
+        originPosition = Point.fromLngLat(originCoord.getLongitude(), originCoord.getLatitude());
+        getRoute(originPosition, destinationPosition,true);
+    }
+
+    public void setLocationOrigin(LatLng loc){
+        originCoord=loc;
+    }
+    public void setLocationDestination(LatLng loc){
+        destinationCoord=loc;
     }
 }

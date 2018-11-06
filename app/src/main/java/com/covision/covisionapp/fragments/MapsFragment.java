@@ -24,6 +24,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.view.inputmethod.EditorInfo;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -67,6 +68,7 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
     //widgets
     private EditText mSearchText;
     private ImageView mGps;
+    private Button button;
 
     //vars
     private Boolean mLocationPermissionsGranted = false;
@@ -111,6 +113,16 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
         mapView.getMapAsync(this);
         mSearchText = (EditText) v.findViewById(R.id.input_search);
         mGps = (ImageView) v.findViewById(R.id.ic_gps);
+
+
+        button = v.findViewById(R.id.startButton);
+        button.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                boolean simulateRoute = true;
+
+            }
+        });
+
         return v;
     }
 
@@ -213,9 +225,8 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
 
 
     public String geoLocate(String searchString){
-        Log.d(TAG, "geoLocate: geolocating");
-        String dist = "";
 
+        String dist = "";
         if (searchString == "") searchString = mSearchText.getText().toString();
         Geocoder geocoder = new Geocoder(getContext());
         List<Address> list = new ArrayList<>();
@@ -240,14 +251,19 @@ public class MapsFragment extends Fragment implements OnMapReadyCallback, Locati
             end_longitude=address.getLongitude();
             dist=putMarkerDistanceOF();
             durationOF();
-
             paintDirections();
+            button.setEnabled(true);
+            button.setBackgroundResource(R.color.mapboxBlue);
 
         }
         if(dist.equals("")){
             return "error";
         }
-        return dist;
+
+        button.setEnabled(true);
+        button.setBackgroundResource(R.color.mapboxBlue);
+
+        return dist+"&"+end_latitude+"&"+end_longitude+"&"+latitude+"&"+longitude;
     }
 
 

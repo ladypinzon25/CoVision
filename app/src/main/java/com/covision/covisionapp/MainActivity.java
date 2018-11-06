@@ -30,8 +30,13 @@ import android.widget.FrameLayout;
 import android.widget.Toast;
 
 import com.covision.covisionapp.fragments.MapsFragment;
+import com.covision.covisionapp.fragments.NavigationFragment;
 import com.covision.covisionapp.fragments.ObjectDetectionFragment;
 import com.covision.covisionapp.fragments.VoiceFragment;
+import com.mapbox.geojson.Point;
+import com.mapbox.mapboxsdk.annotations.MarkerOptions;
+import com.mapbox.mapboxsdk.geometry.LatLng;
+import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.tomer.fadingtextview.FadingTextView;
 
 import java.text.DecimalFormat;
@@ -46,10 +51,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private VoiceFragment voice;
     private MapsFragment maps;
     private ObjectDetectionFragment objectDetection;
+    private NavigationFragment navigFrag;
 
     private FragmentManager fragmentManager;
 
     private FrameLayout mapView;
+    private FrameLayout navView;
     private FrameLayout detectionView;
     private FadingTextView fadingTextView;
 
@@ -57,6 +64,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     private boolean mapsHidden = true;
     private boolean detectionHidden = true;
+    private boolean navigationHidden = true;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -81,6 +90,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             voice = new VoiceFragment();
             fragmentManager.beginTransaction().add(R.id.voiceFragment, voice).commit();
             if (checkInternet()) {
+                navigFrag = new NavigationFragment();
+                fragmentManager.beginTransaction().add(R.id.navigationFragment,navigFrag).commit();
+
                 maps = new MapsFragment();
                 fragmentManager.beginTransaction().add(R.id.mapsFragment, maps).commit();
 
@@ -127,6 +139,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     @Override
     public void onStart(){
         mapView = findViewById(R.id.mapsFragment);
+        navView = findViewById(R.id.navigationFragment);
         detectionView = findViewById(R.id.objectDetectionFragment);
         super.onStart();
     }
@@ -158,10 +171,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-
     /*
-    onClick del boton principal
-     */
+        onClick del boton principal
+    */
+
     public void onClick(final View v) {
         if(isNetworkAvailable()){
             String[] f= {""};
@@ -171,6 +184,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             if (checkInternet()){
                 if (!mapsHidden) hideMaps();
                 if (!detectionHidden) hideObjectDetection();
+                if (!navigationHidden) hideNavigation();
+
                 voice.recordSpeak(new VoiceFragment.VoiceCallback() {
                     @Override
                     public void onSpeechResult(VoiceFragment.VoiceResult result, String... params) {
@@ -182,12 +197,21 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             case Route:
                                 voice.textToVoice("Calculando ruta hacia " + params[0]);
                                 showMaps();
-                                String res=maps.geoLocate(params[0]);
-                                if(!res.equals("error")){
-                                    res = res.replace(".","=");
-                                    String[]d = res.split("=");
-                                    Log.d("QUE FOCO ",res);
+                                String les=maps.geoLocate(params[0]);
+                                if(!les.equals("error")){
+                                    String[] res = les.split("&");
+                                    Double longtud= Double.valueOf(res[2]);
+                                    Double latisnd= Double.valueOf(res[1]);
+                                    Double latiOri= Double.valueOf(res[3]);
+                                    Double longOri= Double.valueOf(res[4]);
+                                    navigFrag.setLocationDestination(new LatLng(latisnd,longtud));
+                                    navigFrag.setLocationOrigin(new LatLng(latiOri,longOri));
+                                    les = res[0].replace(".","=");
+                                    String[]d = les.split("=");
                                     voice.textToVoice( "estas a una distancia de "+ d[0] + " metros");
+                                    hideMaps();
+                                    showNavigation();
+                                    navigFrag.startTheNavRes();
                                 }else{
                                     voice.textToVoice("No se pudo calcular la distancia hasta su destino");
                                 }
@@ -260,6 +284,36 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         });
         animX.start();
         mapsHidden = false;
+    }
+
+    private void hideNavigation()
+    {
+        ValueAnimator animX = ValueAnimator.ofFloat(0, 2* navView.getWidth());
+        animX.setDuration(500);
+        animX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                navView.setTranslationX((float) animation.getAnimatedValue());
+            }
+        });
+        animX.start();
+        navigationHidden = true;
+    }
+
+    private void showNavigation()
+    {
+        ValueAnimator animX = ValueAnimator.ofFloat(2* navView.getWidth(), 0);
+        animX.setDuration(500);
+        animX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                navView.setTranslationX((float) animation.getAnimatedValue());
+            }
+        });
+        animX.start();
+        navigationHidden = false;
     }
 
     private void hideObjectDetection()
