@@ -13,8 +13,8 @@ public class ObjectDetectionResult {
     @SerializedName("score")
     private double score;
 
-    @SerializedName("final")
-    private int isFinal;
+    @SerializedName("type")
+    private String type;
 
     public ObjectDetectionResult(){
     }
@@ -43,11 +43,7 @@ public class ObjectDetectionResult {
         this.score = score;
     }
 
-    public int getIsFinal() {
-        return isFinal;
-    }
+    public String getType() { return type; }
 
-    public void setIsFinal(int isFinal) {
-        this.isFinal = isFinal;
-    }
+    public void setType(String type) { this.type = type; }
 }

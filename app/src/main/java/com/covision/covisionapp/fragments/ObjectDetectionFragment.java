@@ -76,7 +76,7 @@ public class ObjectDetectionFragment extends Fragment {
         void onError(String message);
     }
 
-    public void detect(DetectionMessageCallback callback)
+    public void detect(DetectionMessageCallback callback, String type)
     {
         detectCallback = callback;
         if (textureView.isAvailable() && cameraId != null)
@@ -85,7 +85,7 @@ public class ObjectDetectionFragment extends Fragment {
             (new Handler()).postDelayed(new Runnable() {
                 @Override
                 public void run() {
-                    captureImage();
+                    captureImage(type);
                 }
             }, 1000);
         }
@@ -95,7 +95,7 @@ public class ObjectDetectionFragment extends Fragment {
         }
     }
 
-    private void captureImage()
+    private void captureImage(String type)
     {
         Bitmap image = textureView.getBitmap();
         /*switch (rotation) {
@@ -117,12 +117,17 @@ public class ObjectDetectionFragment extends Fragment {
                 Paint paint = new Paint();
                 paint.setARGB(1, 100, 100, 100);
                 String text = "";
-                for (ObjectDetectionResult box: result){
-                    if (box.getIsFinal()==1) {
+                ObjectDetectionResult box = null;
+                for (int i = 0; i<result.size(); i++){
+                    box = result.get(i);
+                    if (box.getType().equals("Analysis") && type.equals("navigation")) {
+                        text = box.getClassName();
+                    }
+                    else if (box.getType().equals("CountText") && type.equals("all")) {
                         text = box.getClassName();
                         if (text.split("\n").length == 1) text = "No encontre ningun objeto";
                     }
-                    else
+                    else if (box.getType().equals("BoundingBox"))
                     {
                         double[] rect = box.getBox();
                         canvas.drawRect((float)rect[0],(float)rect[1],(float)rect[2],(float)rect[3],paint);
