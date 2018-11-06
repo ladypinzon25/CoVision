@@ -229,7 +229,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                     public void onError(String message) {
                                         voice.textToVoice(message);
                                     }
-                                });
+                                }, params[0]);
                                 break;
                         }
                     }

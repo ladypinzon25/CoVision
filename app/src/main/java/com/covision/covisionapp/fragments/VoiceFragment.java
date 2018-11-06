@@ -32,7 +32,9 @@ public class VoiceFragment extends Fragment {
     private SpeechRecognizer sr;
     private static final String TAG = "MainFragment";
     private String LOG_TAG = "SpeechToTextActivity";
-    private String[] options = {"llevame a", "donde estoy", "frente", "adelante"};
+    private String[] routeDict = {"llevame a", "llevame al", "llevame a la"};
+    private String[] locationDict = {"donde estoy"};
+    private String[] detectionDict = {"objetos", "frente", "adelante"};
     private VoiceCallback callback;
 
     public enum VoiceResult {
@@ -175,31 +177,37 @@ public class VoiceFragment extends Fragment {
         speech = speech.toLowerCase();
         int opt = -1;
         Log.i(LOG_TAG, "analize: normalizó a "+ speech);
-        for (int i=0; i<options.length && opt ==-1; i++){
-            if(speech.contains(options[i])) opt = i;
-        }
-        Log.i(LOG_TAG, "analize: opcion "+ opt);
-        switch (opt){
-            case 0:
+        for (int i=0; i<routeDict.length; i++){
+            if(speech.contains(routeDict[i])){
                 if(speech.contains(" a ")){
-                    //puede ser a, al, a la
                     String[] div = speech.split(" a ");
                     this.callback.onSpeechResult(VoiceResult.Route, div[1]);
                 }
-                break;
-            case 1:
-                this.callback.onSpeechResult(VoiceResult.Location);
-                break;
-            case 2:
-                this.callback.onSpeechResult(VoiceResult.Detection);
-                break;
-            case 3:
-                this.callback.onSpeechResult(VoiceResult.Detection);
-                break;
-            default:
-                this.callback.onError("Lo siento, esa no es una opción disponible.");
-                break;
+                else if(speech.contains(" al ")){
+                    String[] div = speech.split(" al ");
+                    this.callback.onSpeechResult(VoiceResult.Route, div[1]);
+                }
+                else if(speech.contains(" a la ")){
+                    String[] div = speech.split(" a la ");
+                    this.callback.onSpeechResult(VoiceResult.Route, div[1]);
+                }
+                return;
+            }
         }
+        for (int i=0; i<locationDict.length; i++){
+            if(speech.contains(locationDict[i])) {
+                this.callback.onSpeechResult(VoiceResult.Location);
+                return;
+            }
+        }
+        for (int i=0; i<detectionDict.length; i++){
+            if(speech.contains(detectionDict[i])) {
+                if (i==0) this.callback.onSpeechResult(VoiceResult.Detection, "all");
+                else this.callback.onSpeechResult(VoiceResult.Detection, "navigation");
+                return;
+            }
+        }
+        this.callback.onError("Lo siento, esa no es una opción disponible.");
     }
 
     /*
