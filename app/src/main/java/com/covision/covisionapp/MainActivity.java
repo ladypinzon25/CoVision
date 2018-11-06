@@ -1,12 +1,16 @@
 package com.covision.covisionapp;
 
+import android.Manifest;
 import android.animation.ValueAnimator;
+import android.app.PendingIntent;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.hardware.SensorManager;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
@@ -14,6 +18,7 @@ import android.net.NetworkInfo;
 import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Build;
+import android.provider.ContactsContract;
 import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
@@ -21,14 +26,18 @@ import android.support.v4.app.FragmentManager;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.telephony.SmsManager;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.FrameLayout;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.support.design.widget.Snackbar;
 
+import com.covision.covisionapp.dtos.ContactDTO;
 import com.covision.covisionapp.fragments.MapsFragment;
 import com.covision.covisionapp.fragments.NavigationFragment;
 import com.covision.covisionapp.fragments.ObjectDetectionFragment;
@@ -40,6 +49,7 @@ import com.mapbox.mapboxsdk.maps.MapboxMap;
 import com.tomer.fadingtextview.FadingTextView;
 
 import java.text.DecimalFormat;
+import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity implements View.OnClickListener{
 
@@ -47,6 +57,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public static final int REQUEST_CAMERA = 200;
     public static final int REQUEST_RECORD = 300;
     public static final int REQUEST_LOCATION = 400;
+    private static final int PERMISSION_REQUEST_CONTACTS = 500;
+    private static final int PERMISSION_REQUEST_SEND_SMS = 600;
 
     private VoiceFragment voice;
     private MapsFragment maps;
@@ -59,18 +71,23 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private FrameLayout navView;
     private FrameLayout detectionView;
     private FadingTextView fadingTextView;
+    private View mLayout;
 
     private Button speakButton;
+    private ArrayList<ContactDTO> contacts;
+    private ContactDTO selectedContact;
 
     private boolean mapsHidden = true;
     private boolean detectionHidden = true;
     private boolean navigationHidden = true;
 
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        contacts = new ArrayList<>();
+        mLayout = findViewById(R.id.main_layout);
 
         // Boton principal
         speakButton =  findViewById(R.id.btnMic);
@@ -109,7 +126,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 android.Manifest.permission.RECORD_AUDIO,
                 android.Manifest.permission.CAMERA,
                 android.Manifest.permission.ACCESS_FINE_LOCATION,
-                android.Manifest.permission.ACCESS_COARSE_LOCATION
+                android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                Manifest.permission.SEND_SMS,
+                Manifest.permission.READ_CONTACTS
         };
 
         if(!hasPermissions(this, PERMISSIONS)){
@@ -231,6 +250,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                                     }
                                 }, params[0]);
                                 break;
+                            case SendMessage:
+                                sendMessageToEmergencyContact(params[0]);
+                                break;
                         }
                     }
 
@@ -254,6 +276,70 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         "Detected Internet Conection - Back Online!", Toast.LENGTH_LONG).show();
             }
         }
+    }
+
+    private void sendMessageToEmergencyContact(String name){
+        loadContacts();
+        for (int i = 0; i < contacts.size() && selectedContact == null; i++) {
+            if (contacts.get(i).getName().toLowerCase().contains(name.toLowerCase())) {
+                selectedContact = contacts.get(i);
+            }
+        }
+
+        String[] PERMISSIONS = {
+                Manifest.permission.SEND_SMS,
+                Manifest.permission.READ_CONTACTS
+        };
+
+        if(!hasPermissions(this, PERMISSIONS)){
+            Snackbar.make(mLayout, R.string.permissions_denied, Snackbar.LENGTH_SHORT).show();
+            ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_ALL);
+        }
+        if (hasPermissions(this, PERMISSIONS)) {
+            if (selectedContact != null) {
+                String message = "Hola " + selectedContact.getName() + ", el usuario ha llegado a su destino";
+                sendMessage(selectedContact.getNumber(), message);
+            } else {
+                voice.textToVoice("No se ha encontrado al contacto. Intenta de nuevo.");
+            }
+        }
+    }
+
+    private void loadContacts() {
+        ContentResolver contentResolver = getContentResolver();
+        Cursor cursor = contentResolver.query(ContactsContract.Contacts.CONTENT_URI, null, null, null, null);
+        while (cursor.moveToNext()) {
+            if (cursor.getCount() > 0) {
+                String id = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts._ID));
+                String name = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
+                int hasPhoneNumber = Integer.parseInt(cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER)));
+
+                if (hasPhoneNumber > 0) {
+                    Cursor cursor2 = contentResolver.query(ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                            null,
+                            ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ?",
+                            new String[]{id}, null);
+                    while (cursor2.moveToNext()) {
+                        String phoneNumber = cursor2.getString(cursor2.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
+                        ContactDTO contact = new ContactDTO(name, phoneNumber);
+                        contacts.add(contact);
+                    }
+                    cursor2.close();
+                }
+            }
+        }
+        cursor.close();
+    }
+
+    public void sendMessage(String number, String message) {
+        PendingIntent sent = PendingIntent.getBroadcast(getBaseContext(), 0, new Intent("sent"), 0);
+        PendingIntent deliver = PendingIntent.getBroadcast(getBaseContext(), 0, new Intent("delivered"), 0);
+
+        SmsManager smsManager = SmsManager.getDefault();
+         smsManager.sendTextMessage(number, null, message, sent, deliver);
+        voice.textToVoice("M.");
+        voice.textToVoice("Se ha avisado al contacto que llegaste al destino");
+
     }
 
     private void hideMaps()

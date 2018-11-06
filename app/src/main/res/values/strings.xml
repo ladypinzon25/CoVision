@@ -5,5 +5,6 @@
     <string name="access_token" translatable="false">pk.eyJ1IjoiZXhwbG9kZCIsImEiOiJjam8zOXBvdWYwcnRjM3Byejl3cWtlbGVzIn0.MM0Oli54B5aZBGkXESKHBg</string>
     <string name="user_location_permission_explanation">This app needs location permissions in order to show its functionality.</string>
     <string name="user_location_permission_not_granted">You didn\'t grant location permissions.</string>
+    <string name="permissions_denied">You should grand SMS and contact permissions to use this functionality.</string>
 
 </resources>

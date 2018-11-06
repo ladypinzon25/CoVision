@@ -35,12 +35,14 @@ public class VoiceFragment extends Fragment {
     private String[] routeDict = {"llevame a", "llevame al", "llevame a la"};
     private String[] locationDict = {"donde estoy"};
     private String[] detectionDict = {"objetos", "frente", "adelante"};
+    private String[] messageDict = {"avisa a"};
     private VoiceCallback callback;
 
     public enum VoiceResult {
         Location,
         Route,
-        Detection
+        Detection,
+        SendMessage
     }
 
     public VoiceFragment() {
@@ -204,6 +206,13 @@ public class VoiceFragment extends Fragment {
             if(speech.contains(detectionDict[i])) {
                 if (i==0) this.callback.onSpeechResult(VoiceResult.Detection, "all");
                 else this.callback.onSpeechResult(VoiceResult.Detection, "navigation");
+                return;
+            }
+        }
+        for (int i=0; i<messageDict.length; i++){
+            if(speech.contains(messageDict[i])) {
+                String name = speech.split(messageDict[i])[1].trim();
+                this.callback.onSpeechResult(VoiceResult.SendMessage, name);
                 return;
             }
         }
