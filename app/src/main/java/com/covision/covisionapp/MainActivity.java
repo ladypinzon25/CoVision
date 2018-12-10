@@ -51,7 +51,13 @@ import com.tomer.fadingtextview.FadingTextView;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 
-public class MainActivity extends AppCompatActivity implements View.OnClickListener{
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
+
+public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     public static final int REQUEST_ALL = 100;
     public static final int REQUEST_CAMERA = 200;
@@ -81,16 +87,26 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     private boolean detectionHidden = true;
     private boolean navigationHidden = true;
 
+    DatabaseReference mDatabase = FirebaseDatabase.getInstance().getReference();
+    DatabaseReference nRoot = mDatabase.child("text");
+
+
+
+    private TextView pfirebase;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.d("PRUEBAFB","nroot - " +nRoot);
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
         contacts = new ArrayList<>();
         mLayout = findViewById(R.id.main_layout);
 
+        pfirebase = (TextView) findViewById(R.id.firebase);
+
         // Boton principal
-        speakButton =  findViewById(R.id.btnMic);
+        speakButton = findViewById(R.id.btnMic);
         speakButton.setOnClickListener(this);
 
         // fading text on start
@@ -99,7 +115,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         // Fragmentos
         fragmentManager = getSupportFragmentManager();
 
-        if(!isNetworkAvailable()){
+        if (!isNetworkAvailable()) {
             displayContextualInfoOnNoInternet();
             turnOnWifiRequest();
         }
@@ -108,16 +124,15 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             fragmentManager.beginTransaction().add(R.id.voiceFragment, voice).commit();
             if (checkInternet()) {
                 navigFrag = new NavigationFragment();
-                fragmentManager.beginTransaction().add(R.id.navigationFragment,navigFrag).commit();
+                fragmentManager.beginTransaction().add(R.id.navigationFragment, navigFrag).commit();
 
                 maps = new MapsFragment();
                 fragmentManager.beginTransaction().add(R.id.mapsFragment, maps).commit();
 
                 objectDetection = new ObjectDetectionFragment();
                 fragmentManager.beginTransaction().add(R.id.objectDetectionFragment, objectDetection).commit();
-            }
-            else {
-                if(voice!=null)
+            } else {
+                if (voice != null)
                     voice.textToVoice("No tienes conexión a internet. Intenta más tarde");
             }
         }
@@ -131,18 +146,19 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Manifest.permission.READ_CONTACTS
         };
 
-        if(!hasPermissions(this, PERMISSIONS)){
+        if (!hasPermissions(this, PERMISSIONS)) {
             ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_ALL);
         }
     }
 
-    private void displayContextualInfoOnNoInternet(){
-        String[] t ={"Revisa tu conexion a internet","Prende el Wifi","Sal del sotano","App no apta para ascensores"};
+
+    private void displayContextualInfoOnNoInternet() {
+        String[] t = {"Revisa tu conexion a internet", "Prende el Wifi", "Sal del sotano", "App no apta para ascensores"};
         fadingTextView.setTexts(t);
         fadingTextView.setTextSize(38);
         Toast.makeText(this,
                 "Please check your internet connection state", Toast.LENGTH_LONG).show();
-        if(voice!=null){
+        if (voice != null) {
             voice.textToVoice("No tienes conexion a internet. Intenta más tarde");
         }
     }
@@ -156,11 +172,25 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     @Override
-    public void onStart(){
+    public void onStart() {
         mapView = findViewById(R.id.mapsFragment);
         navView = findViewById(R.id.navigationFragment);
         detectionView = findViewById(R.id.objectDetectionFragment);
         super.onStart();
+
+        nRoot.addValueEventListener(new ValueEventListener() {
+
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                String text = dataSnapshot.getValue().toString();
+                pfirebase.setText(text);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+
+            }
+        });
     }
 
     @Override
@@ -195,90 +225,88 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     */
 
     public void onClick(final View v) {
-        if(isNetworkAvailable()){
-            String[] f= {""};
+        if (isNetworkAvailable()) {
+            String[] f = {""};
             fadingTextView.setTexts(f);
 
-        if (v.getId() == R.id.btnMic) {
-            if (checkInternet()){
-                if (!mapsHidden) hideMaps();
-                if (!detectionHidden) hideObjectDetection();
-                if (!navigationHidden) hideNavigation();
+            if (v.getId() == R.id.btnMic) {
+                if (checkInternet()) {
+                    if (!mapsHidden) hideMaps();
+                    if (!detectionHidden) hideObjectDetection();
+                    if (!navigationHidden) hideNavigation();
 
-                voice.recordSpeak(new VoiceFragment.VoiceCallback() {
-                    @Override
-                    public void onSpeechResult(VoiceFragment.VoiceResult result, String... params) {
-                        switch (result) {
-                            case Location:
-                                voice.textToVoice(maps.showCurrentPlace());
-                                showMaps();
-                                break;
-                            case Route:
-                                voice.textToVoice("Calculando ruta hacia " + params[0]);
-                                showMaps();
-                                String les=maps.geoLocate(params[0]);
-                                if(!les.equals("error")){
-                                    String[] res = les.split("&");
-                                    Double longtud= Double.valueOf(res[2]);
-                                    Double latisnd= Double.valueOf(res[1]);
-                                    Double latiOri= Double.valueOf(res[3]);
-                                    Double longOri= Double.valueOf(res[4]);
-                                    navigFrag.setLocationDestination(new LatLng(latisnd,longtud));
-                                    navigFrag.setLocationOrigin(new LatLng(latiOri,longOri));
-                                    les = res[0].replace(".","=");
-                                    String[]d = les.split("=");
-                                    voice.textToVoice( "estas a una distancia de "+ d[0] + " metros");
-                                    hideMaps();
-                                    showNavigation();
-                                    navigFrag.startTheNavRes();
-                                }else{
-                                    voice.textToVoice("No se pudo calcular la distancia hasta su destino");
-                                }
-                                break;
-                            case Detection:
-                                voice.textToVoice("Iniciando análisis de imagen");
-                                objectDetection.detect(new ObjectDetectionFragment.DetectionMessageCallback() {
-                                    @Override
-                                    public void onDetectionResult(String result) {
-                                        showObjectDetection();
-                                        voice.textToVoice(result);
+                    voice.recordSpeak(new VoiceFragment.VoiceCallback() {
+                        @Override
+                        public void onSpeechResult(VoiceFragment.VoiceResult result, String... params) {
+                            switch (result) {
+                                case Location:
+                                    voice.textToVoice(maps.showCurrentPlace());
+                                    showMaps();
+                                    break;
+                                case Route:
+                                    voice.textToVoice("Calculando ruta hacia " + params[0]);
+                                    showMaps();
+                                    String les = maps.geoLocate(params[0]);
+                                    if (!les.equals("error")) {
+                                        String[] res = les.split("&");
+                                        Double longtud = Double.valueOf(res[2]);
+                                        Double latisnd = Double.valueOf(res[1]);
+                                        Double latiOri = Double.valueOf(res[3]);
+                                        Double longOri = Double.valueOf(res[4]);
+                                        navigFrag.setLocationDestination(new LatLng(latisnd, longtud));
+                                        navigFrag.setLocationOrigin(new LatLng(latiOri, longOri));
+                                        les = res[0].replace(".", "=");
+                                        String[] d = les.split("=");
+                                        voice.textToVoice("estas a una distancia de " + d[0] + " metros");
+                                        hideMaps();
+                                        showNavigation();
+                                        navigFrag.startTheNavRes();
+                                    } else {
+                                        voice.textToVoice("No se pudo calcular la distancia hasta su destino");
                                     }
+                                    break;
+                                case Detection:
+                                    voice.textToVoice("Iniciando análisis de imagen");
+                                    objectDetection.detect(new ObjectDetectionFragment.DetectionMessageCallback() {
+                                        @Override
+                                        public void onDetectionResult(String result) {
+                                            showObjectDetection();
+                                            voice.textToVoice(result);
+                                        }
 
-                                    @Override
-                                    public void onError(String message) {
-                                        voice.textToVoice(message);
-                                    }
-                                }, params[0]);
-                                break;
-                            case SendMessage:
-                                sendMessageToEmergencyContact(params[0]);
-                                break;
+                                        @Override
+                                        public void onError(String message) {
+                                            voice.textToVoice(message);
+                                        }
+                                    }, params[0]);
+                                    break;
+                                case SendMessage:
+                                    sendMessageToEmergencyContact(params[0]);
+                                    break;
+                            }
                         }
-                    }
 
-                    @Override
-                    public void onError(String message) {
-                        voice.textToVoice(message);
-                    }
-                });
+                        @Override
+                        public void onError(String message) {
+                            voice.textToVoice(message);
+                        }
+                    });
+                } else {
+                    if (voice != null)
+                        voice.textToVoice("No tienes conexion a internet. Intenta más tarde");
+                }
             }
-            else {
-                if(voice!=null)
-                    voice.textToVoice("No tienes conexion a internet. Intenta más tarde");
-            }
-         }
-        }
-        else{
+        } else {
             displayContextualInfoOnNoInternet();
             turnOnWifiRequest();
-            if(isNetworkAvailable()){
+            if (isNetworkAvailable()) {
                 Toast.makeText(this,
                         "Detected Internet Conection - Back Online!", Toast.LENGTH_LONG).show();
             }
         }
     }
 
-    private void sendMessageToEmergencyContact(String name){
+    private void sendMessageToEmergencyContact(String name) {
         loadContacts();
         for (int i = 0; i < contacts.size() && selectedContact == null; i++) {
             if (contacts.get(i).getName().toLowerCase().contains(name.toLowerCase())) {
@@ -291,7 +319,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 Manifest.permission.READ_CONTACTS
         };
 
-        if(!hasPermissions(this, PERMISSIONS)){
+        if (!hasPermissions(this, PERMISSIONS)) {
             Snackbar.make(mLayout, R.string.permissions_denied, Snackbar.LENGTH_SHORT).show();
             ActivityCompat.requestPermissions(this, PERMISSIONS, REQUEST_ALL);
         }
@@ -336,15 +364,14 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         PendingIntent deliver = PendingIntent.getBroadcast(getBaseContext(), 0, new Intent("delivered"), 0);
 
         SmsManager smsManager = SmsManager.getDefault();
-         smsManager.sendTextMessage(number, null, message, sent, deliver);
+        smsManager.sendTextMessage(number, null, message, sent, deliver);
         voice.textToVoice("M.");
         voice.textToVoice("Se ha avisado al contacto que llegaste al destino");
 
     }
 
-    private void hideMaps()
-    {
-        ValueAnimator animX = ValueAnimator.ofFloat(0, 2* mapView.getWidth());
+    private void hideMaps() {
+        ValueAnimator animX = ValueAnimator.ofFloat(0, 2 * mapView.getWidth());
         animX.setDuration(500);
         animX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
 
@@ -357,9 +384,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mapsHidden = true;
     }
 
-    private void showMaps()
-    {
-        ValueAnimator animX = ValueAnimator.ofFloat(2* mapView.getWidth(), 0);
+    private void showMaps() {
+        ValueAnimator animX = ValueAnimator.ofFloat(2 * mapView.getWidth(), 0);
         animX.setDuration(500);
         animX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
 
@@ -372,9 +398,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         mapsHidden = false;
     }
 
-    private void hideNavigation()
-    {
-        ValueAnimator animX = ValueAnimator.ofFloat(0, 2* navView.getWidth());
+    private void hideNavigation() {
+        ValueAnimator animX = ValueAnimator.ofFloat(0, 2 * navView.getWidth());
         animX.setDuration(500);
         animX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
 
@@ -387,9 +412,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         navigationHidden = true;
     }
 
-    private void showNavigation()
-    {
-        ValueAnimator animX = ValueAnimator.ofFloat(2* navView.getWidth(), 0);
+    private void showNavigation() {
+        ValueAnimator animX = ValueAnimator.ofFloat(2 * navView.getWidth(), 0);
         animX.setDuration(500);
         animX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
 
@@ -402,9 +426,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         navigationHidden = false;
     }
 
-    private void hideObjectDetection()
-    {
-        ValueAnimator animX = ValueAnimator.ofFloat(0, -2* detectionView.getWidth());
+    private void hideObjectDetection() {
+        ValueAnimator animX = ValueAnimator.ofFloat(0, -2 * detectionView.getWidth());
         animX.setDuration(500);
         animX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
 
@@ -417,9 +440,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         detectionHidden = true;
     }
 
-    private void showObjectDetection()
-    {
-        ValueAnimator animX = ValueAnimator.ofFloat(-2* detectionView.getWidth(), 0);
+    private void showObjectDetection() {
+        ValueAnimator animX = ValueAnimator.ofFloat(-2 * detectionView.getWidth(), 0);
         animX.setDuration(500);
         animX.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
 
@@ -432,7 +454,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         detectionHidden = false;
     }
 
-    public static void setMargins (View v, int l, int t, int r, int b) {
+    public static void setMargins(View v, int l, int t, int r, int b) {
         if (v.getLayoutParams() instanceof ViewGroup.MarginLayoutParams) {
             ViewGroup.MarginLayoutParams p = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
             p.setMargins(l, t, r, b);
@@ -451,15 +473,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         return true;
     }
 
-    private boolean checkInternet (){
+    private boolean checkInternet() {
         ConnectivityManager connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-        if(connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getState() == NetworkInfo.State.CONNECTED ||
-                connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).getState() == NetworkInfo.State.CONNECTED){
+        if (connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_MOBILE).getState() == NetworkInfo.State.CONNECTED ||
+                connectivityManager.getNetworkInfo(ConnectivityManager.TYPE_WIFI).getState() == NetworkInfo.State.CONNECTED) {
             return true;
         }
         return false;
     }
-    private void turnOnWifiRequest(){
+
+    private void turnOnWifiRequest() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setMessage("Do you want to turn WIFI ON?")
                 .setCancelable(false)
